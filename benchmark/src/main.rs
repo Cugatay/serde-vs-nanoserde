@@ -2,7 +2,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use std::{
     fs::{remove_file, File},
     io::{ErrorKind, Write},
-}; // 0.8
+};
 
 enum WriteType {
     Serde,
@@ -17,19 +17,12 @@ fn main() {
 fn write_to(write_type: WriteType) {
     let function_count = 10_000;
 
-    let file_name;
-    let write_str;
+    let file_name = match write_type {
+        WriteType::Serde => "../with-serde/src/main.rs",
+        WriteType::NanoSerde => "../with-nanoserde/src/main.rs",
+    };
 
-    match write_type {
-        WriteType::Serde => {
-            file_name = "../with-serde/src/main.rs";
-            write_str = serde_function_creator(function_count);
-        }
-        WriteType::NanoSerde => {
-            file_name = "../with-nanoserde/src/main.rs";
-            write_str = nanoserde_function_creator(function_count);
-        }
-    }
+    let write_str = function_creator(write_type, function_count);
 
     if let Err(e) = remove_file(file_name) {
         match e.kind() {
@@ -51,11 +44,26 @@ fn random_str(len: usize) -> String {
         .collect()
 }
 
-fn serde_function_creator(function_count: usize) -> String {
-    let mut return_str = String::from(
-        "use serde::{{Serialize, Deserialize}};
+fn function_creator(write_type: WriteType, function_count: usize) -> String {
+    let mut return_str;
+    let derive_str;
+
+    match write_type {
+        WriteType::Serde => {
+            return_str = String::from(
+                "use serde::{{Serialize, Deserialize}};
         ",
-    );
+            );
+            derive_str = "#[derive(Serialize, Deserialize)]";
+        }
+        WriteType::NanoSerde => {
+            return_str = String::from(
+                "use nanoserde::{DeJson, SerJson};
+        ",
+            );
+            derive_str = "#[derive(DeJson, SerJson)]";
+        }
+    };
 
     let mut main_fn_str = String::from(
         "
@@ -71,59 +79,7 @@ fn serde_function_creator(function_count: usize) -> String {
 
         let func_str = format!(
             "
-#[derive(Serialize, Deserialize)]
-struct {struct_name} {{
-    {struct_field_name}: String,
-}}
-
-fn use_{struct_name}() {{
-    let created_{struct_name} = {struct_name} {{
-        {struct_field_name}: \"{struct_field_value}\".to_string(),
-    }};
-
-    println!(\"{{}}\", created_{struct_name}.{struct_field_name});
-}}
-            "
-        );
-
-        return_str += func_str.as_str();
-
-        main_fn_str += format!(
-            "
-use_{struct_name}();
-            "
-        )
-        .as_str();
-    }
-
-    main_fn_str += "\n}";
-
-    return_str += main_fn_str.as_str();
-
-    return_str
-}
-
-fn nanoserde_function_creator(function_count: usize) -> String {
-    let mut return_str = String::from(
-        "use nanoserde::{DeJson, SerJson};
-        ",
-    );
-
-    let mut main_fn_str = String::from(
-        "
-        fn main() {
-        ",
-    );
-
-    for _ in 0..function_count {
-        let struct_name: String = random_str(15).chars().filter(|c| !c.is_numeric()).collect();
-        let struct_field_name: String =
-            random_str(15).chars().filter(|c| !c.is_numeric()).collect();
-        let struct_field_value = random_str(30);
-
-        let func_str = format!(
-            "
-#[derive(DeJson, SerJson)]
+{derive_str}
 struct {struct_name} {{
     {struct_field_name}: String,
 }}
