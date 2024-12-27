@@ -1,0 +1,7 @@
+[package]
+name = "with-nanoserde"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nanoserde = "0.1.37"
